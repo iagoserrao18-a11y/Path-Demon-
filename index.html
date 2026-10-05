@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#080808">
+<title>Demon Path</title>
+
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+ margin:0;
+ min-height:100vh;
+ background:
+ radial-gradient(circle at 50% 20%,#4b0000 0,#160000 25%,#050505 65%);
+ color:#eee;
+ font-family:Arial,Helvetica,sans-serif;
+ overflow-x:hidden;
+}
+button,input{font:inherit}
+button{
+ cursor:pointer;
+ border:0;
+ border-radius:12px;
+ padding:14px 18px;
+ color:#fff;
+ background:linear-gradient(135deg,#8b0000,#390000);
+ box-shadow:0 0 15px #000;
+ font-weight:bold;
+}
+button:active{transform:scale(.96)}
+.hidden{display:none!important}
+
+#app{
+ max-width:900px;
+ margin:auto;
+ min-height:100vh;
+ padding:15px;
+}
+
+.screen{
+ min-height:calc(100vh - 30px);
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+}
+
+.logo{
+ text-align:center;
+ font-size:clamp(42px,12vw,90px);
+ font-weight:900;
+ letter-spacing:5px;
+ color:#d40000;
+ text-shadow:0 0 10px #f00,0 0 40px #700;
+}
+.subtitle{
+ text-align:center;
+ color:#aaa;
+ margin:5px 0 30px;
+ letter-spacing:2px;
+}
+
+.card{
+ background:rgba(10,10,10,.88);
+ border:1px solid #600;
+ border-radius:20px;
+ padding:22px;
+ box-shadow:0 0 35px #000;
+ margin-bottom:15px;
+}
+
+input{
+ width:100%;
+ padding:16px;
+ border-radius:12px;
+ border:1px solid #700;
+ background:#111;
+ color:white;
+ outline:none;
+ margin:10px 0 15px;
+}
+
+h1,h2,h3{margin-top:0}
+.red{color:#e00000}
+.center{text-align:center}
+
+.demon{
+ font-size:75px;
+ text-align:center;
+ filter:drop-shadow(0 0 15px red);
+ animation:float 2s infinite ease-in-out;
+}
+@keyframes float{
+ 50%{transform:translateY(-8px)}
+}
+
+.dialogue{
+ background:#080808;
+ border:1px solid #550000;
+ border-radius:15px;
+ padding:15px;
+ margin:15px 0;
+ min-height:70px;
+}
+
+.stats{
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:8px;
+ margin-bottom:15px;
+}
+.stat{
+ background:#111;
+ border:1px solid #400;
+ padding:10px;
+ border-radius:10px;
+ text-align:center;
+}
+.stat b{display:block;color:#f00;font-size:20px}
+
+.menu{
+ display:grid;
+ grid-template-columns:repeat(2,1fr);
+ gap:10px;
+}
+.menu button{
+ min-height:75px;
+}
+
+.category{
+ color:#ff4444;
+ font-size:13px;
+ text-transform:uppercase;
+ letter-spacing:2px;
+}
+
+.answers{
+ display:grid;
+ gap:10px;
+ margin-top:20px;
+}
+.answer{
+ text-align:left;
+ background:#111;
+ border:1px solid #333;
+}
+.answer.correct{
+ background:#064d1b;
+ border-color:#00c83c;
+}
+.answer.wrong{
+ background:#4d0505;
+ border-color:#f00;
+}
+
+.progress{
+ height:8px;
+ background:#222;
+ border-radius:20px;
+ overflow:hidden;
+ margin:10px 0 20px;
+}
+.progress div{
+ height:100%;
+ background:#c00;
+ transition:.3s;
+}
+
+.board{
+ display:grid;
+ grid-template-columns:repeat(3,1fr);
+ max-width:330px;
+ margin:20px auto;
+ gap:7px;
+}
+.cell{
+ aspect-ratio:1;
+ font-size:45px;
+ padding:0;
+ background:#111;
+ border:1px solid #500;
+}
+
+.memory{
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:8px;
+ max-width:420px;
+ margin:auto;
+}
+.mem{
+ aspect-ratio:1;
+ font-size:32px;
+ background:#150000;
+ border:1px solid #600;
+}
+.mem.open{background:#333}
+.mem.matched{background:#123b18}
+
+.error-grid{
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:7px;
+ margin-top:15px;
+}
+.error-item{
+ aspect-ratio:1;
+ background:#181818;
+ border:2px solid #333;
+ border-radius:10px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ font-size:32px;
+}
+.error-item.found{
+ border-color:#f00;
+ background:#3d0000;
+}
+
+.rank{
+ font-size:32px;
+ text-align:center;
+ color:#e00000;
+ text-shadow:0 0 15px red;
+}
+
+#toast{
+ position:fixed;
+ bottom:20px;
+ left:50%;
+ transform:translateX(-50%);
+ background:#111;
+ border:1px solid #800;
+ padding:12px 18px;
+ border-radius:20px;
+ display:none;
+ z-index:100;
+}
+
+@media(max-width:600px){
+ #app{padding:10px}
+ .screen{min-height:calc(100vh - 20px)}
+ .stats{grid-template-columns:repeat(2,1fr)}
+ .menu{grid-template-columns:1fr}
+ .memory{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   DEMON PATH
+   JOGO COMPLETO - HTML + CSS + JAVASCRIPT
+========================================================= */
+
+const app=document.getElementById("app");
+
+let player="";
+let lives=5;
+let souls=0;
+let combo=0;
+let score=0;
+let currentCategory="";
+let qIndex=0;
+let quizQuestions=[];
+let answered=false;
+
+let ranking=JSON.parse(localStorage.getItem("demonPathRanking")||"[]");
+
+/* =========================================================
+   PERGUNTAS
+========================================================= */
+
+const BANK={
+
+"Informática":[
+["Qual componente é considerado a memória principal do computador?","RAM",["HD","SSD","RAM","Fonte"]],
+["Qual sistema é responsável por gerenciar o hardware e os programas?","Sistema operacional",["Antivírus","Sistema operacional","Navegador","Editor"]],
+["Qual unidade representa 1024 megabytes?","1 gigabyte",["1 kilobyte","1 gigabyte","1 terabyte","1 byte"]],
+["Qual linguagem é usada para estruturar páginas web?","HTML",["Python","HTML","SQL","C++"]],
+["Qual dispositivo é usado para armazenar dados permanentemente?","SSD",["RAM","Cache","SSD","CPU"]]
+],
+
+"Universo":[
+["Qual é o planeta mais próximo do Sol?","Mercúrio",["Vênus","Terra","Mercúrio","Marte"]],
+["Qual é a estrela do Sistema Solar?","Sol",["Lua","Sirius","Sol","Júpiter"]],
+["Qual planeta é conhecido como planeta vermelho?","Marte",["Saturno","Marte","Netuno","Vênus"]],
+["Qual é o maior planeta do Sistema Solar?","Júpiter",["Terra","Saturno","Júpiter","Netuno"]],
+["Como se chama a galáxia onde está o Sistema Solar?","Via Láctea",["Andrômeda","Via Láctea","Órion","Triângulo"]]
+],
+
+"História":[
+["Em que país surgiram os Jogos Olímpicos antigos?","Grécia",["Roma","Egito","Grécia","China"]],
+["Quem foi conhecido como imperador francês?","Napoleão Bonaparte",["Júlio César","Napoleão Bonaparte","Alexandre","Cleópatra"]],
+["Qual civilização construiu as pirâmides de Gizé?","Egípcia",["Maia","Romana","Egípcia","Grega"]],
+["A Independência do Brasil ocorreu em qual ano?","1822",["1500","1789","1822","1889"]],
+["Quem proclamou a Independência do Brasil?","Dom Pedro I",["Dom Pedro II","Tiradentes","Dom Pedro I","Getúlio Vargas"]]
+],
+
+"Mitologia":[
+["Na mitologia grega, quem era o deus dos mares?","Poseidon",["Ares","Zeus","Poseidon","Hades"]],
+["Quem era o deus grego do submundo?","Hades",["Hermes","Hades","Apolo","Dionísio"]],
+["Qual criatura possui corpo de leão e cabeça humana?","Esfinge",["Medusa","Minotauro","Esfinge","Quimera"]],
+["Thor pertence principalmente a qual mitologia?","Nórdica",["Grega","Egípcia","Nórdica","Maia"]],
+["Quem era o deus nórdico associado ao trovão?","Thor",["Loki","Odin","Thor","Balder"]]
+],
+
+"Ciência":[
+["Qual é a fórmula química da água?","H₂O",["CO₂","O₂","H₂O","NaCl"]],
+["Qual órgão bombeia o sangue pelo corpo?","Coração",["Pulmão","Fígado","Coração","Rim"]],
+["Qual força mantém os corpos atraídos à Terra?","Gravidade",["Magnetismo","Gravidade","Eletricidade","Pressão"]],
+["Qual gás é essencial para a respiração humana?","Oxigênio",["Hélio","Oxigênio","Nitrogênio","Hidrogênio"]],
+["Qual é o centro de um átomo?","Núcleo",["Elétron","Núcleo","Molécula","Íon"]]
+],
+
+"Lógica":[
+["Complete: 2, 4, 8, 16, ?","32",["20","24","30","32"]],
+["Se todos os gatos são animais e Luna é um gato, Luna é...","animal",["planta","animal","objeto","planeta"]],
+["Quanto é 15 × 4?","60",["45","50","60","75"]],
+["Qual número completa: 3, 6, 9, 12, ?","15",["13","14","15","18"]],
+["Se hoje é segunda-feira, daqui a 7 dias será...","segunda-feira",["domingo","terça-feira","segunda-feira","quarta-feira"]]
+],
+
+"Geek":[
+["Qual herói usa um escudo com uma estrela?","Capitão América",["Batman","Homem-Aranha","Capitão América","Thor"]],
+["Qual personagem é conhecido como o ninja Naruto?","Naruto Uzumaki",["Goku","Naruto Uzumaki","Luffy","Ichigo"]],
+["Em Pokémon, qual criatura é conhecida por usar eletricidade?","Pikachu",["Charmander","Pikachu","Squirtle","Eevee"]],
+["Em Minecraft, qual material é necessário para criar uma mesa de encantamentos?","Diamante",["Madeira","Diamante","Areia","Carvão"]],
+["Qual saga apresenta o personagem Frodo?","O Senhor dos Anéis",["Harry Potter","O Senhor dos Anéis","Star Wars","Matrix"]]
+]
+
+};
+
+/* =========================================================
+   SONS
+========================================================= */
+
+let audioCtx=null;
+
+function sound(freq=440,duration=.1,type="square"){
+ try{
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.type=type;
+  o.frequency.value=freq;
+  g.gain.setValueAtTime(.04,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime+duration);
+ }catch(e){}
+}
+
+function successSound(){
+ sound(600,.1);
+ setTimeout(()=>sound(850,.15),80);
+}
+
+function errorSound(){
+ sound(120,.25,"sawtooth");
+}
+
+function toast(t){
+ const el=document.getElementById("toast");
+ el.textContent=t;
+ el.style.display="block";
+ setTimeout(()=>el.style.display="none",1800);
+}
+
+/* =========================================================
+   TELA INICIAL
+========================================================= */
+
+function startScreen(){
+ app.innerHTML=`
+ <div class="screen">
+  <div class="demon">👹</div>
+  <div class="logo">DEMON PATH</div>
+  <div class="subtitle">ENTRE NO CAMINHO. ENFRENTE O DEMÔNIO.</div>
+
+  <div class="card">
+   <h2 class="center">Qual é o seu nome?</h2>
+   <input id="nameInput" maxlength="20" placeholder="Digite seu nome...">
+   <button style="width:100%" onclick="beginGame()">ENTRAR NO CAMINHO</button>
+  </div>
+
+  <div class="card center">
+   <small>⚠️ Suas escolhas terão consequências.</small>
+  </div>
+ </div>`;
+}
+
+function beginGame(){
+ const n=document.getElementById("nameInput").value.trim();
+ player=n||"Iago";
+ lives=5;
+ souls=0;
+ combo=0;
+ score=0;
+ home();
+}
+
+/* =========================================================
+   MENU
+========================================================= */
+
+function home(){
+ app.innerHTML=`
+ <div class="screen">
+  <div class="demon">👹</div>
+  <div class="logo" style="font-size:48px">DEMON PATH</div>
+
+  <div class="card">
+   <h2>Bem-vindo, <span class="red">${player}</span>.</h2>
+   <div class="dialogue" id="demonText">
+    👹 O caminho está diante de você...
+    <br><br>
+    "Escolha seu desafio, ${player}. Mas saiba: errar tem um preço."
+   </div>
+  </div>
+
+  <div class="stats">
+   <div class="stat">❤️ Vidas<b>${lives}</b></div>
+   <div class="stat">🔥 Combo<b>${combo}</b></div>
+   <div class="stat">💀 Almas<b>${souls}</b></div>
+   <div class="stat">🏆 Pontos<b>${score}</b></div>
+  </div>
+
+  <div class="menu">
+   <button onclick="startQuiz('Informática')">💻 INFORMÁTICA</button>
+   <button onclick="startQuiz('Universo')">🌌 UNIVERSO</button>
+   <button onclick="startQuiz('História')">🏛️ HISTÓRIA</button>
+   <button onclick="startQuiz('Mitologia')">🧙 MITOLOGIA</button>
+   <button onclick="startQuiz('Ciência')">🔬 CIÊNCIA</button>
+   <button onclick="startQuiz('Lógica')">🧩 LÓGICA</button>
+   <button onclick="startQuiz('Geek')">🎬 CULTURA GEEK</button>
+   <button onclick="ticTacToe()">🎮 VELHA VS DIABO</button>
+   <button onclick="memoryGame()">🧠 MEMÓRIA DEMONÍACA</button>
+   <button onclick="sevenErrors()">👁️ OS 7 ERROS</button>
+   <button onclick="rankingScreen()">🏆 RANKING</button>
+  </div>
+ </div>`;
+}
+
+/* =========================================================
+   QUIZ
+========================================================= */
+
+function startQuiz(cat){
+ currentCategory=cat;
+ quizQuestions=[...BANK[cat]].sort(()=>Math.random()-.5);
+ qIndex=0;
+ quizQuestion();
+}
+
+function quizQuestion(){
+ answered=false;
+
+ if(qIndex>=quizQuestions.length){
+  finishQuiz();
+  return;
+ }
+
+ const q=quizQuestions[qIndex];
+
+ let options=[...q[2]].sort(()=>Math.random()-.5);
+
+ app.innerHTML=`
+ <div class="screen">
+  <div class="stats">
+   <div class="stat">❤️ Vidas<b>${lives}</b></div>
+   <div class="stat">🔥 Combo<b>${combo}</b></div>
+   <div class="stat">💀 Almas<b>${souls}</b></div>
+   <div class="stat">🏆 Pontos<b>${score}</b></div>
+  </div>
+
+  <div class="progress">
+   <div style="width:${(qIndex/quizQuestions.length)*100}%"></div>
+  </div>
+
+  <div class="card">
+   <div class="category">${currentCategory} • ${qIndex+1}/${quizQuestions.length}</div>
+   <h2>${q[0]}</h2>
+
+   <div class="demon" style="font-size:55px">👹</div>
+
+   <div class="dialogue">
+    👹 ${combo>2
+      ? `Interessante, ${player}... você está ficando perigoso.`
+      : `Vamos descobrir se você realmente pertence ao Demon Path...`}
+   </div>
+
+   <div class="answers">
+    ${options.map(o=>`
+     <button class="answer" onclick="answerQuiz(this,'${escapeJS(o)}','${escapeJS(q[1])}')">
+      ${o}
+     </button>`).join("")}
+   </div>
+
+   <div id="feedback" class="dialogue hidden"></div>
+  </div>
+ </div>`;
+}
+
+function escapeJS(s){
+ return s.replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;");
+}
+
+function answerQuiz(btn,answer,correct){
+ if(answered)return;
+ answered=true;
+
+ const ok=answer===correct;
+
+ document.querySelectorAll(".answer").forEach(b=>b.disabled=true);
+
+ if(ok){
+  btn.classList.add("correct");
+  combo++;
+  const gained=10+(combo*2);
+  score+=gained;
+  souls++;
+  successSound();
+
+  document.getElementById("feedback").classList.remove("hidden");
+  document.getElementById("feedback").innerHTML=
+   `🔥 <b>ACERTOU!</b><br>
+   👹 "Muito bem, ${player}... essa alma agora pertence ao seu caminho."<br>
+   +${gained} pontos • +1 alma • Combo ${combo}`;
+
+ }else{
+  btn.classList.add("wrong");
+  lives--;
+  combo=0;
+  errorSound();
+
+  document.getElementById("feedback").classList.remove("hidden");
+  document.getElementById("feedback").innerHTML=
+   `💀 <b>ERROU.</b><br>
+   👹 "Patético, ${player}. Você perdeu uma vida."<br>
+   Resposta correta: <b>${correct}</b><br>
+   ❤️ Vidas restantes: ${lives}`;
+ }
+
+ setTimeout(()=>{
+  if(lives<=0){
+   gameOver();
+  }else{
+   qIndex++;
+   quizQuestion();
+  }
+ },1700);
+}
+
+function finishQuiz(){
+ let rank;
+
+ if(score>=150)rank="👑 SENHOR DO CAMINHO";
+ else if(score>=100)rank="🔥 DEMÔNIO SUPREMO";
+ else if(score>=60)rank="💀 CAÇADOR DE ALMAS";
+ else rank="🩸 APRENDIZ DO ABISMO";
+
+ ranking.push({name:player,score,rank});
+ ranking.sort((a,b)=>b.score-a.score);
+ ranking=ranking.slice(0,10);
+ localStorage.setItem("demonPathRanking",JSON.stringify(ranking));
+
+ let ending=
+ score>=150
+ ? "O Demônio se ajoelha diante de você. O Caminho agora pertence a você."
+ : score>=100
+ ? "As portas do abismo se abrem. Você conquistou o respeito do Demônio."
+ : score>=60
+ ? "Você sobreviveu ao Caminho. Mas o Demônio ainda observa..."
+ : "Você escapou por pouco. O verdadeiro Caminho ainda não começou.";
+
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card center">
+   <div class="demon">👹</div>
+   <h1>FIM DO CAMINHO</h1>
+
+   <div class="rank">${rank}</div>
+
+   <h2>${player}</h2>
+   <p>🏆 Pontos: <b>${score}</b></p>
+   <p>💀 Almas: <b>${souls}</b></p>
+   <p>🔥 Combo máximo: <b>${combo}</b></p>
+
+   <div class="dialogue">
+    👹 "${ending}"
+   </div>
+
+   <button onclick="home()">VOLTAR AO DEMON PATH</button>
+   <button onclick="rankingScreen()">VER RANKING</button>
+  </div>
+ </div>`;
+}
+
+/* =========================================================
+   GAME OVER
+========================================================= */
+
+function gameOver(){
+ ranking.push({
+  name:player,
+  score,
+  rank:"💀 DERROTADO PELO ABISMO"
+ });
+
+ ranking.sort((a,b)=>b.score-a.score);
+ ranking=ranking.slice(0,10);
+ localStorage.setItem("demonPathRanking",JSON.stringify(ranking));
+
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card center">
+   <div class="demon">👹</div>
+   <h1 class="red">GAME OVER</h1>
+
+   <div class="dialogue">
+    👹 "Acabou, ${player}... suas vidas chegaram ao fim."
+    <br><br>
+    "Mas talvez você tenha força para tentar novamente."
+   </div>
+
+   <h2>🏆 ${score} pontos</h2>
+
+   <button onclick="restart()">TENTAR NOVAMENTE</button>
+   <button onclick="home()">MENU</button>
+  </div>
+ </div>`;
+}
+
+function restart(){
+ lives=5;
+ souls=0;
+ combo=0;
+ score=0;
+ home();
+}
+
+/* =========================================================
+   JOGO DA VELHA
+========================================================= */
+
+let board=[];
+let playerTurn=true;
+
+function ticTacToe(){
+ board=["","","","","","","","",""];
+ playerTurn=true;
+ renderTicTacToe();
+}
+
+function renderTicTacToe(){
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card center">
+   <div class="demon">👹</div>
+   <h1>VELHA VS DIABO</h1>
+
+   <div class="dialogue">
+    👹 "Você será ❌. Eu serei 😈. Vamos ver quem domina o tabuleiro."
+   </div>
+
+   <div class="board">
+    ${board.map((v,i)=>`
+     <button class="cell" onclick="ticMove(${i})">${v}</button>
+    `).join("")}
+   </div>
+
+   <p>Você: ❌ &nbsp;&nbsp; Diabo: 😈</p>
+
+   <button onclick="home()">SAIR</button>
+  </div>
+ </div>`;
+}
+
+function ticMove(i){
+ if(!playerTurn||board[i])return;
+
+ board[i]="❌";
+ playerTurn=false;
+
+ if(checkWinner(board)){
+  ticEnd("Você venceu o Diabo! 🔥");
+  return;
+ }
+
+ if(board.every(Boolean)){
+  ticEnd("Empate. O Diabo escapou...");
+  return;
+ }
+
+ renderTicTacToe();
+
+ setTimeout(()=>{
+  const empty=board
+   .map((v,i)=>v?null:i)
+   .filter(v=>v!==null);
+
+  const move=empty[Math.floor(Math.random()*empty.length)];
+  board[move]="😈";
+
+  if(checkWinner(board)){
+   ticEnd("O Diabo venceu. 💀");
+   return;
+  }
+
+  if(board.every(Boolean)){
+   ticEnd("Empate. 😈");
+   return;
+  }
+
+  playerTurn=true;
+  renderTicTacToe();
+ },500);
+}
+
+function checkWinner(b){
+ const wins=[
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+ ];
+ return wins.some(x=>b[x[0]]&&b[x[0]]===b[x[1]]&&b[x[1]]===b[x[2]]);
+}
+
+function ticEnd(msg){
+ if(msg.includes("Você venceu")){
+  score+=25;
+  souls++;
+  successSound();
+ }else if(msg.includes("Diabo")){
+  lives=Math.max(0,lives-1);
+  errorSound();
+ }
+
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card center">
+   <div class="demon">👹</div>
+   <h1>${msg}</h1>
+   <p>🏆 Pontos: ${score}</p>
+   <p>❤️ Vidas: ${lives}</p>
+   <button onclick="ticTacToe()">JOGAR NOVAMENTE</button>
+   <button onclick="home()">MENU</button>
+  </div>
+ </div>`;
+}
+
+/* =========================================================
+   MEMÓRIA
+========================================================= */
+
+let memCards=[];
+let firstCard=null;
+let lockMemory=false;
+let matched=0;
+
+function memoryGame(){
+ const symbols=["👹","💀","🔥","🩸","👁️","🐉"];
+ memCards=[...symbols,...symbols]
+  .sort(()=>Math.random()-.5)
+  .map((s,i)=>({s,id:i,open:false,match:false}));
+
+ firstCard=null;
+ lockMemory=false;
+ matched=0;
+
+ renderMemory();
+}
+
+function renderMemory(){
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card center">
+   <div class="demon">👹</div>
+   <h1>MEMÓRIA DEMONÍACA</h1>
+   <p>Encontre todos os pares.</p>
+
+   <div class="memory">
+    ${memCards.map((c,i)=>`
+     <button class="mem ${c.open||c.match?"open":""} ${c.match?"matched":""}"
+      onclick="flipMemory(${i})">
+      ${c.open||c.match?c.s:"?"}
+     </button>
+    `).join("")}
+   </div>
+
+   <br>
+   <button onclick="home()">SAIR</button>
+  </div>
+ </div>`;
+}
+
+function flipMemory(i){
+ if(lockMemory||memCards[i].open||memCards[i].match)return;
+
+ memCards[i].open=true;
+ sound(500,.08);
+
+ if(firstCard===null){
+  firstCard=i;
+  renderMemory();
+  return;
+ }
+
+ renderMemory();
+
+ const second=i;
+ lockMemory=true;
+
+ setTimeout(()=>{
+  if(memCards[firstCard].s===memCards[second].s){
+   memCards[firstCard].match=true;
+   memCards[second].match=true;
+   matched+=2;
+   score+=15;
+   souls++;
+   successSound();
+
+   if(matched===memCards.length){
+    setTimeout(()=>{
+     alert("🧠 Memória completa! +15 pontos por par.");
+    },100);
+   }
+  }else{
+   memCards[firstCard].open=false;
+   memCards[second].open=false;
+   errorSound();
+  }
+
+  firstCard=null;
+  lockMemory=false;
+  renderMemory();
+ },650);
+}
+
+/* =========================================================
+   7 ERROS
+========================================================= */
+
+let errorFound=0;
+let errorPositions=[];
+
+function sevenErrors(){
+ errorFound=0;
+
+ /* sete diferenças verdadeiras escondidas */
+ errorPositions=[1,3,5,8,10,13,15];
+
+ const icons=[
+  "🕯️","💀","🩸","👁️",
+  "🐉","⚰️","🔥","🌙",
+  "🗝️","🕷️","☠️","📜",
+  "🗡️","👹","🦇","🔮"
+ ];
+
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card center">
+   <div class="demon">👹</div>
+   <h1>OS 7 ERROS</h1>
+
+   <div class="dialogue">
+    👹 "Existem <b>7 símbolos amaldiçoados</b> neste cenário."
+    <br>
+    Toque neles para encontrá-los.
+   </div>
+
+   <div class="error-grid">
+    ${icons.map((x,i)=>`
+     <button class="error-item" id="err${i}" onclick="findError(${i})">
+      ${x}
+     </button>
+    `).join("")}
+   </div>
+
+   <h2>👁️ Encontrados: <span id="errorCount">0</span>/7</h2>
+
+   <button onclick="home()">SAIR</button>
+  </div>
+ </div>`;
+}
+
+function findError(i){
+ const el=document.getElementById("err"+i);
+ if(!el||el.classList.contains("found"))return;
+
+ if(errorPositions.includes(i)){
+  el.classList.add("found");
+  errorFound++;
+  score+=10;
+  souls++;
+  successSound();
+
+  document.getElementById("errorCount").textContent=errorFound;
+
+  if(errorFound===7){
+   setTimeout(()=>{
+    alert("👁️ Você encontrou os 7 erros! +70 pontos.");
+   },100);
+  }
+ }else{
+  lives=Math.max(0,lives-1);
+  combo=0;
+  errorSound();
+  toast("💀 Errado! Você perdeu uma vida.");
+ }
+}
+
+/* =========================================================
+   RANKING
+========================================================= */
+
+function rankingScreen(){
+ app.innerHTML=`
+ <div class="screen">
+  <div class="card">
+   <div class="demon">👹</div>
+   <h1 class="center">🏆 RANKING DO ABISMO</h1>
+
+   ${
+    ranking.length
+    ? ranking.map((r,i)=>`
+      <div class="stat" style="margin:7px 0;text-align:left">
+       <b style="display:inline;color:#f00">${i+1}º</b>
+       ${r.name}
+       <span style="float:right">${r.score} pts</span>
+       <br>
+       <small>${r.rank}</small>
+      </div>
+    `).join("")
+    : `<p class="center">Ainda não existem guerreiros no ranking.</p>`
+   }
+
+   <button style="width:100%;margin-top:15px" onclick="home()">VOLTAR</button>
+   <button style="width:100%;margin-top:8px" onclick="clearRanking()">APAGAR RANKING</button>
+  </div>
+ </div>`;
+}
+
+function clearRanking(){
+ if(confirm("Apagar todo o ranking?")){
+  ranking=[];
+  localStorage.removeItem("demonPathRanking");
+  rankingScreen();
+ }
+}
+
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+window.startQuiz=startQuiz;
+window.answerQuiz=answerQuiz;
+window.beginGame=beginGame;
+window.home=home;
+window.ticTacToe=ticTacToe;
+window.ticMove=ticMove;
+window.memoryGame=memoryGame;
+window.flipMemory=flipMemory;
+window.sevenErrors=sevenErrors;
+window.findError=findError;
+window.rankingScreen=rankingScreen;
+window.clearRanking=clearRanking;
+window.restart=restart;
+
+startScreen();
+
+</script>
+</body>
+</html>
